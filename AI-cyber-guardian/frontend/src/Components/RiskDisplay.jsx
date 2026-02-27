@@ -1,4 +1,6 @@
 const RiskDisplay = ({ data }) => {
+  if (!data) return null;
+
   const { label, confidence, risk, reasons } = data;
 
   const riskClass =
@@ -15,6 +17,7 @@ const RiskDisplay = ({ data }) => {
       </h2>
 
       <p><strong>Confidence:</strong> {confidence}%</p>
+
       <p>
         <strong>Risk Level:</strong>{" "}
         <span className={riskClass}>{risk}</span>
@@ -28,6 +31,7 @@ const RiskDisplay = ({ data }) => {
       </div>
 
       <h3 style={{ marginTop: "1rem" }}>Why flagged?</h3>
+
       <ul>
         {reasons.map((reason, index) => (
           <li key={index}>{reason}</li>

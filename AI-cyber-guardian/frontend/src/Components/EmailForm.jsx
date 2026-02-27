@@ -1,31 +1,16 @@
 import { useState } from "react";
-import { analyzeEmail } from "../services/api";
 
-const EmailForm = () => {
+const EmailForm = ({ onAnalyze }) => {
   const [emailText, setEmailText] = useState("");
 
   const handleSubmit = async () => {
-  if (!emailText.trim()) return;
+    if (!emailText.trim()) return;
 
-  const data = {
-    email_content: emailText,
-    risk_score: 75,
-    threat_level: "Medium",
-    action_taken: "Flagged",
-    explanation: "Suspicious keywords detected",
-    sender_ip: "192.168.1.1",
-    department: "IT",
-    submitted_by: "prajith@company.com",
-    attachment_url: ""
+    // 🔥 Call Dashboard function
+    await onAnalyze(emailText);
+
+    setEmailText(""); // optional: clear textarea
   };
-
-  try {
-    await analyzeEmail(data);
-    alert("Incident Saved Successfully ✅");
-  } catch (error) {
-    alert("Error saving incident ❌");
-  }
-};
 
   return (
     <>
@@ -33,6 +18,8 @@ const EmailForm = () => {
         placeholder="Paste suspicious email here..."
         value={emailText}
         onChange={(e) => setEmailText(e.target.value)}
+        rows="6"
+        style={{ width: "100%", padding: "10px" }}
       />
 
       <button onClick={handleSubmit}>

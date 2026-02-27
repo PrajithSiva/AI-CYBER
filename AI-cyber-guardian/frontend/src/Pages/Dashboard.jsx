@@ -3,59 +3,84 @@ import EmailForm from "../components/EmailForm";
 import RiskDisplay from "../components/RiskDisplay";
 import Loader from "../components/Loader";
 import IncidentTable from "../components/IncidentTable";
-import { analyzeEmail as analyzeAPI } from "../services/api";
 
 const Dashboard = () => {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
+  const [error, setError] = useState(null);
 
-  
-const analyzeEmail = async (emailText) => {
-  setLoading(true);
-  setResult(null);
+  const analyzeEmail = async (emailText) => {
+    setLoading(true);
+    setResult(null);
+    setError(null);
 
-  try {
-    const response = await fetch("http://localhost:5000/analyze", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ email: emailText })
-    });
+    try {
+      const response = await fetch("http://localhost:5000/analyze", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email_content: emailText }),
+      });
 
-    const data = await response.json();
-    setResult(data);
+      if (!response.ok) {
+        throw new Error("Server responded with an error");
+      }
 
-  } catch (error) {
-    console.error("Error:", error);
-  }
+      const data = await response.json();
+      console.log("🔥 FULL BACKEND RESPONSE:", JSON.stringify(data, null, 2));
+      
 
-  setLoading(false);
+      // 🔥 Normalize possible backend structures
+      const backendData = data;
+
+const formattedResult = {
+  label: backendData.action_taken || "Analyzed",
+
+  confidence: backendData.risk_score
+    ? Math.round(backendData.risk_score)
+    : 0,
+
+  risk: backendData.threat_level || "Low",
+
+  reasons: backendData.explanation
+    ? [backendData.explanation]
+    : ["AI analysis completed"],
 };
-  
+
+setResult(formattedResult);
+
+    } catch (err) {
+      console.error("Error analyzing email:", err);
+      setError("Something went wrong while analyzing the email.");
+    }
+
+    setLoading(false);
+  };
+
   return (
-    <div className="container">
-      <h1 className="title">AI Corporate Cyber Guardian</h1>
-      <p className="subtitle">
-        AI-powered phishing detection and corporate email security analysis
-      </p>
+    <div className="app-wrapper">
+      <div className="container">
+        <h1 className="title">AI Corporate Cyber Guardian</h1>
+        <p className="subtitle">
+          AI-powered phishing detection and corporate email security analysis
+        </p>
 
-      <div className="divider"></div>
+        <div className="divider"></div>
 
-      {/* Email Input */}
-      <EmailForm onAnalyze={analyzeEmail} />
+        <EmailForm onAnalyze={analyzeEmail} />
 
-      {/* Loader */}
-      {loading && <Loader />}
+        {loading && <Loader />}
 
-      {/* Risk Result */}
-      {result && <RiskDisplay data={result} />}
+        {error && <p style={{ color: "red" }}>{error}</p>}
 
-      <div className="divider"></div>
+        {result && <RiskDisplay data={result} />}
 
-      {/* Incident History Table */}
-      <h2>Incident History</h2>
-      <IncidentTable />
+        <div className="divider"></div>
+
+        <h2>Incident History</h2>
+        <IncidentTable />
+      </div>
     </div>
   );
 };
