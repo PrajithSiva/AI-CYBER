@@ -17,13 +17,11 @@ app.use(cors());
 app.use(express.json());
 
 // ==========================================
-// PostgreSQL (Neon) Connection
+// PostgreSQL Connection
 // ==========================================
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false,
-  },
+  ssl: { rejectUnauthorized: false },
 });
 
 // ==========================================
@@ -34,7 +32,7 @@ app.get("/", (req, res) => {
 });
 
 // ==========================================
-// Analyze Email Route (CONNECTED TO PYTHON AI)
+// Analyze Email Route
 // ==========================================
 app.post("/analyze", async (req, res) => {
   try {
@@ -48,14 +46,11 @@ app.post("/analyze", async (req, res) => {
       });
     }
 
-    // ==========================================
-    // 🔥 CALL PYTHON AI ENGINE
-    // ==========================================
+    // 🔥 Call Python AI Engine
     const aiResponse = await axios.post(
-      "http://localhost:8000/analyze",
-      {
-        email_content: email,
-      }
+      "http://127.0.0.1:8000/analyze",
+      { email_content: email },
+      { timeout: 5000 }
     );
 
     const {
@@ -65,29 +60,14 @@ app.post("/analyze", async (req, res) => {
       explanation,
     } = aiResponse.data;
 
-    // ==========================================
-    // 🔥 SAVE RESULT TO DATABASE
-    // ==========================================
+    // 🔥 Save to DB
     await pool.query(
       `INSERT INTO incidents 
-       (email_content, risk_score, threat_level, action_taken, explanation, sender_ip, department, submitted_by, attachment_url)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-      [
-        email,
-        risk_score,
-        threat_level,
-        action_taken,
-        explanation,
-        req.body.sender_ip || null,
-        req.body.department || null,
-        req.body.submitted_by || null,
-        req.body.attachment_url || null,
-      ]
+       (email_content, risk_score, threat_level, action_taken, explanation)
+       VALUES ($1,$2,$3,$4,$5)`,
+      [email, risk_score, threat_level, action_taken, explanation]
     );
 
-    // ==========================================
-    // 🔥 SEND FINAL RESPONSE TO FRONTEND
-    // ==========================================
     res.status(200).json({
       risk_score,
       threat_level,
@@ -96,27 +76,24 @@ app.post("/analyze", async (req, res) => {
     });
 
   } catch (error) {
-    console.error("ERROR:", error.message);
-
-    if (error.response) {
-      console.error("AI ENGINE ERROR:", error.response.data);
-    }
+    console.error("FULL ERROR:", error);
 
     res.status(500).json({
       message: "AI Engine or Database Error",
+      error: error.message,
     });
   }
 });
 
 // ==========================================
-// Fetch All Incidents
+// Fetch Incidents
 // ==========================================
 app.get("/incidents", async (req, res) => {
   try {
     const result = await pool.query(
       "SELECT * FROM incidents ORDER BY id DESC"
     );
-    res.status(200).json(result.rows);
+    res.json(result.rows);
   } catch (error) {
     console.error("FETCH ERROR:", error);
     res.status(500).json({
