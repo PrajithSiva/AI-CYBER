@@ -191,3 +191,55 @@ button:hover {
     background-position: 200% center;
   }
 }
+body {
+  margin: 0;
+  font-family: "Segoe UI", sans-serif;
+  background: #0f172a;
+}
+
+/* Split layout */
+.auth-container {
+  display: flex;
+  height: 100vh;
+}
+
+/* Left Branding Panel */
+.auth-left {
+  flex: 1;
+  background: linear-gradient(135deg, #0f172a, #1e293b);
+  color: white;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 80px;
+}
+
+.auth-left h1 {
+  font-size: 42px;
+  margin-bottom: 20px;
+}
+
+.auth-left p {
+  font-size: 18px;
+  line-height: 1.6;
+  color: #94a3b8;
+}
+
+/* Right Login Panel */
+.auth-right {
+  flex: 1;
+  background: #f8fafc;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Topbar after login */
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 40px;
+  background: #0f172a;
+  color: white;
+}
