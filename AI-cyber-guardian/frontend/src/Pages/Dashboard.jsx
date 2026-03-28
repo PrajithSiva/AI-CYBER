@@ -1,61 +1,55 @@
 import { useState } from "react";
+import { useAuth } from "@clerk/clerk-react";
+
 import EmailForm from "../components/EmailForm";
 import RiskDisplay from "../components/RiskDisplay";
 import Loader from "../components/Loader";
 import IncidentTable from "../components/IncidentTable";
+
+import { analyzeEmail, setAuthToken } from "../services/api";
 
 const Dashboard = () => {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
 
-  const analyzeEmail = async (emailText) => {
+  const { getToken } = useAuth();
+
+  const handleAnalyze = async (emailText) => {
     setLoading(true);
     setResult(null);
     setError(null);
 
     try {
-      const response = await fetch("http://localhost:5000/analyze", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email_content: emailText }),
+      const token = await getToken();
+      setAuthToken(token); // 🔐 Attach token
+
+      const response = await analyzeEmail({
+        email_content: emailText,
       });
 
-      if (!response.ok) {
-        throw new Error("Server responded with an error");
-      }
+      const data = response.data;
+      console.log("🔥 Backend Response:", data);
 
-      const data = await response.json();
-      console.log("🔥 FULL BACKEND RESPONSE:", JSON.stringify(data, null, 2));
-      
+      const formattedResult = {
+        label: data.action_taken || "Analyzed",
+        confidence: data.risk_score
+          ? Math.round(data.risk_score)
+          : 0,
+        risk: data.threat_level || "Low",
+        reasons: data.explanation
+          ? [data.explanation]
+          : ["AI analysis completed"],
+      };
 
-      // 🔥 Normalize possible backend structures
-      const backendData = data;
-
-const formattedResult = {
-  label: backendData.action_taken || "Analyzed",
-
-  confidence: backendData.risk_score
-    ? Math.round(backendData.risk_score)
-    : 0,
-
-  risk: backendData.threat_level || "Low",
-
-  reasons: backendData.explanation
-    ? [backendData.explanation]
-    : ["AI analysis completed"],
-};
-
-setResult(formattedResult);
+      setResult(formattedResult);
 
     } catch (err) {
       console.error("Error analyzing email:", err);
       setError("Something went wrong while analyzing the email.");
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   return (
@@ -68,17 +62,23 @@ setResult(formattedResult);
 
         <div className="divider"></div>
 
-        <EmailForm onAnalyze={analyzeEmail} />
+        {/* 🔍 Email Input */}
+        <EmailForm onAnalyze={handleAnalyze} />
 
+        {/* ⏳ Loader */}
         {loading && <Loader />}
 
+        {/* ❌ Error */}
         {error && <p style={{ color: "red" }}>{error}</p>}
 
+        {/* 📊 Result */}
         {result && <RiskDisplay data={result} />}
 
         <div className="divider"></div>
 
         <h2>Incident History</h2>
+
+        {/* 📋 Table */}
         <IncidentTable />
       </div>
     </div>

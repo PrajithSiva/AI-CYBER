@@ -1,11 +1,22 @@
 import axios from "axios";
 
 const API = axios.create({
-  baseURL: "http://localhost:5000"
+  baseURL: "http://localhost:5000",
 });
 
-// POST - Insert incident
+// 🔐 Set token dynamically
+export const setAuthToken = (token) => {
+  if (token) {
+    API.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+  } else {
+    delete API.defaults.headers.common["Authorization"];
+  }
+};
+
+// 📧 POST - Analyze Email
 export const analyzeEmail = (data) => API.post("/analyze", data);
 
-// GET - Fetch all incidents
+// 📊 GET - Fetch incidents
 export const getIncidents = () => API.get("/incidents");
+
+export default API;

@@ -6,6 +6,7 @@ const express = require("express");
 const cors = require("cors");
 const axios = require("axios");
 const { Pool } = require("pg");
+const { ClerkExpressRequireAuth } = require("@clerk/clerk-sdk-node");
 require("dotenv").config();
 
 const app = express();
@@ -24,6 +25,15 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false },
 });
 
+// Optional logs
+pool.on("connect", () => {
+  console.log("✅ Connected to PostgreSQL");
+});
+
+pool.on("error", (err) => {
+  console.error("❌ DB Error:", err);
+});
+
 // ==========================================
 // Root Route
 // ==========================================
@@ -32,13 +42,15 @@ app.get("/", (req, res) => {
 });
 
 // ==========================================
-// Analyze Email Route
+// 🔐 Analyze Email (PROTECTED)
 // ==========================================
-app.post("/analyze", async (req, res) => {
+app.post("/analyze", ClerkExpressRequireAuth(), async (req, res) => {
   try {
-    console.log("BODY RECEIVED:", req.body);
-
+    const userId = req.auth.userId; // 🔐 Secure user ID
     const email = req.body.email_content;
+
+    console.log("User:", userId);
+    console.log("Email:", email);
 
     if (!email || email.trim() === "") {
       return res.status(400).json({
@@ -60,12 +72,19 @@ app.post("/analyze", async (req, res) => {
       explanation,
     } = aiResponse.data;
 
-    // 🔥 Save to DB
+    // 🔥 Save to DB with USER ID
     await pool.query(
       `INSERT INTO incidents 
-       (email_content, risk_score, threat_level, action_taken, explanation)
-       VALUES ($1,$2,$3,$4,$5)`,
-      [email, risk_score, threat_level, action_taken, explanation]
+       (user_id, email_content, risk_score, threat_level, action_taken, explanation)
+       VALUES ($1,$2,$3,$4,$5,$6)`,
+      [
+        userId,
+        email,
+        risk_score,
+        threat_level,
+        action_taken,
+        explanation,
+      ]
     );
 
     res.status(200).json({
@@ -86,14 +105,21 @@ app.post("/analyze", async (req, res) => {
 });
 
 // ==========================================
-// Fetch Incidents
+// 📊 Get User Incidents (PROTECTED)
 // ==========================================
-app.get("/incidents", async (req, res) => {
+app.get("/incidents", ClerkExpressRequireAuth(), async (req, res) => {
   try {
+    const userId = req.auth.userId;
+
     const result = await pool.query(
-      "SELECT * FROM incidents ORDER BY id DESC"
+      `SELECT * FROM incidents
+       WHERE user_id = $1
+       ORDER BY id DESC`,
+      [userId]
     );
+
     res.json(result.rows);
+
   } catch (error) {
     console.error("FETCH ERROR:", error);
     res.status(500).json({
@@ -103,7 +129,31 @@ app.get("/incidents", async (req, res) => {
 });
 
 // ==========================================
-// Start Server
+// ❌ Optional: Delete Incident (Protected)
+// ==========================================
+app.delete("/incident/:id", ClerkExpressRequireAuth(), async (req, res) => {
+  try {
+    const userId = req.auth.userId;
+    const id = req.params.id;
+
+    await pool.query(
+      `DELETE FROM incidents 
+       WHERE id = $1 AND user_id = $2`,
+      [id, userId]
+    );
+
+    res.json({ message: "Deleted successfully" });
+
+  } catch (error) {
+    console.error("DELETE ERROR:", error);
+    res.status(500).json({
+      message: "Error deleting incident",
+    });
+  }
+});
+
+// ==========================================
+// Server Start
 // ==========================================
 const PORT = process.env.PORT || 5000;
 
