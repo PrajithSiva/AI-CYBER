@@ -25,7 +25,6 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false },
 });
 
-// Optional logs
 pool.on("connect", () => {
   console.log("✅ Connected to PostgreSQL");
 });
@@ -46,7 +45,7 @@ app.get("/", (req, res) => {
 // ==========================================
 app.post("/analyze", ClerkExpressRequireAuth(), async (req, res) => {
   try {
-    const userId = req.auth.userId; // 🔐 Secure user ID
+    const userId = req.auth.userId;
     const email = req.body.email_content;
 
     console.log("User:", userId);
@@ -72,19 +71,20 @@ app.post("/analyze", ClerkExpressRequireAuth(), async (req, res) => {
       explanation,
     } = aiResponse.data;
 
-    // 🔥 Save to DB with USER ID
+    // 🔥 DEBUG LOG
+    console.log("Saving to DB:", {
+      userId,
+      email,
+      risk_score,
+      threat_level,
+    });
+
+    // 🔥 Save to DB
     await pool.query(
       `INSERT INTO incidents 
-       (user_id, email_content, risk_score, threat_level, action_taken, explanation)
-       VALUES ($1,$2,$3,$4,$5,$6)`,
-      [
-        userId,
-        email,
-        risk_score,
-        threat_level,
-        action_taken,
-        explanation,
-      ]
+       (user_id, email_content, risk_score, threat_level, department)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [userId, email, risk_score, threat_level, "General"]
     );
 
     res.status(200).json({
@@ -111,10 +111,19 @@ app.get("/incidents", ClerkExpressRequireAuth(), async (req, res) => {
   try {
     const userId = req.auth.userId;
 
+    console.log("Fetching for user:", userId);
+
     const result = await pool.query(
-      `SELECT * FROM incidents
+      `SELECT 
+        id,
+        email_content,
+        risk_score,
+        threat_level,
+        department,
+        created_at
+       FROM incidents
        WHERE user_id = $1
-       ORDER BY id DESC`,
+       ORDER BY created_at DESC`,
       [userId]
     );
 
@@ -129,7 +138,7 @@ app.get("/incidents", ClerkExpressRequireAuth(), async (req, res) => {
 });
 
 // ==========================================
-// ❌ Optional: Delete Incident (Protected)
+// ❌ Delete Incident (PROTECTED)
 // ==========================================
 app.delete("/incident/:id", ClerkExpressRequireAuth(), async (req, res) => {
   try {
